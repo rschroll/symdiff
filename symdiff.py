@@ -1,4 +1,4 @@
-class Operation(object):
+class Operation:
 
     def run(self, feed_dict=None):
         if feed_dict and self in feed_dict:
@@ -37,17 +37,11 @@ class Operation(object):
     def __rsub__(self, other):
         return Add(other, -self)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         return Multiply(self, Inverse(other))
 
-    def __truediv__(self, other):
-        return self.__div__(other)
-
-    def __rdiv__(self, other):
-        return Multiply(other, Inverse(self))
-
     def __rtruediv__(self, other):
-        return self.__rdiv__(other)
+        return Multiply(other, Inverse(self))
 
     def __pow__(self, exp):
         if not isinstance(exp, int):
@@ -120,8 +114,8 @@ class Multiply(ArgOperation):
 
     def _grad(self, other):
         return Add(*[Multiply(*[self.args[j] if i != j else self.args[j].grad(other)
-                                for j in xrange(len(self.args))])
-                     for i in xrange(len(self.args))])
+                                for j in range(len(self.args))])
+                     for i in range(len(self.args))])
 
     def __repr__(self):
         return '( ' + ' * '.join(map(repr, self.args)) + ' )'
