@@ -27,19 +27,16 @@ class Operation:
         return Add(other, -self)
 
     def __truediv__(self, other):
-        return Multiply(self, Inverse(other))
+        return Multiply(self, Power(other, NEGONE))
 
     def __rtruediv__(self, other):
-        return Multiply(other, Inverse(self))
+        return Multiply(other, Power(self, NEGONE))
 
-    def __pow__(self, exp):
-        if not isinstance(exp, int):
-            raise ValueError("Only integer powers allowed.")
-        if exp > 0:
-            return Multiply(*[self for _ in xrange(exp)])
-        if exp < 0:
-            return Inverse(Multiply(*[self for _ in xrange(-exp)]))
-        return ONE
+    def __pow__(self, other):
+        return Power(self, other)
+
+    def __rpow__(self, other):
+        return Power(other, self)
 
     @staticmethod
     def make_op(a):
@@ -127,14 +124,23 @@ class Multiply(ArgOperation):
         return '( ' + ' * '.join(map(repr, self.args)) + ' )'
 
 
-class Inverse(Operation):
+class Power(Operation):
 
-    def __init__(self, arg):
-        self.arg = arg
+    def __init__(self, base, exponent):
+        self.base = self.make_op(base)
+        self.exponent = self.make_op(exponent)
+        if not isinstance(self.exponent, Constant):
+            raise NotImplementedError('Only constant exponents currently supported')
 
     def partial(self, other):
-        return Multiply(NEGONE, Inverse(Multiply(self.arg, self.arg)),
-                        self.arg.partial(other))
+        return Multiply(self.exponent,
+                        Power(self.base, Constant(self.exponent.value - 1)),
+                        self.base.partial(other))
+
+    def __eq__(self, other):
+        if not isinstance(other, Power):
+            return False
+        return self.base == other.base and self.exponent == other.exponent
 
     def __repr__(self):
-        return '( 1 / ' + repr(self.arg) + ' )'
+        return f'{self.base} ^ {self.exponent}'
