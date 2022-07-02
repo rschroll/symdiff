@@ -1,19 +1,6 @@
 class Operation:
 
-    def run(self, feed_dict=None):
-        if feed_dict and self in feed_dict:
-            return feed_dict[self]
-        return self._run(feed_dict)
-
-    def _run(self, feed_dict):
-        raise NotImplementedError
-
-    def grad(self, other):
-        if self is other:
-            return ONE
-        return self._grad(other)
-
-    def _grad(self, other):
+    def partial(self, other):
         raise NotImplementedError
 
     def __add__(self, other):
@@ -59,10 +46,7 @@ class Constant(Operation):
         self.default = value
         self.name = name
 
-    def _run(self, feed_dict):
-        return self.default
-
-    def _grad(self, other):
+    def partial(self, other):
         return ZERO
 
     def __repr__(self):
@@ -90,11 +74,8 @@ class ArgOperation(Operation):
 
 class Add(ArgOperation):
 
-    def _run(self, feed_dict):
-        return sum(a.run(feed_dict) for a in self.args)
-
-    def _grad(self, other):
-        return Add(*[a.grad(other) for a in self.args])
+    def partial(self, other):
+        return Add(*[a.partial(other) for a in self.args])
 
     def __repr__(self):
         return '( ' + ' + '.join(map(repr, self.args)) + ' )'
@@ -109,11 +90,8 @@ class Multiply(ArgOperation):
             return ZERO
         return super(Multiply, cls).__new__(cls)
 
-    def _run(self, feed_dict):
-        return reduce(lambda x,y: x*y, (a.run(feed_dict) for a in self.args))
-
-    def _grad(self, other):
-        return Add(*[Multiply(*[self.args[j] if i != j else self.args[j].grad(other)
+    def partial(self, other):
+        return Add(*[Multiply(*[self.args[j] if i != j else self.args[j].partial(other)
                                 for j in range(len(self.args))])
                      for i in range(len(self.args))])
 
@@ -126,12 +104,9 @@ class Inverse(Operation):
     def __init__(self, arg):
         self.arg = arg
 
-    def _run(self, feed_dict):
-        return ONE / self.arg.run(feed_dict)
-
-    def _grad(self, other):
+    def partial(self, other):
         return Multiply(NEGONE, Inverse(Multiply(self.arg, self.arg)),
-                        self.arg.grad(other))
+                        self.arg.partial(other))
 
     def __repr__(self):
         return '( 1 / ' + repr(self.arg) + ' )'
