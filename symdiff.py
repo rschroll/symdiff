@@ -1,3 +1,5 @@
+import numbers
+
 class Operation:
 
     def partial(self, other):
@@ -39,25 +41,52 @@ class Operation:
             return Inverse(Multiply(*[self for _ in xrange(-exp)]))
         return ONE
 
+    @staticmethod
+    def make_op(a):
+        if isinstance(a, Operation):
+            return a
+        return Constant(a)
+
 
 class Constant(Operation):
 
-    def __init__(self, value, name=None):
-        self.default = value
-        self.name = name
+    def __init__(self, value):
+        if not isinstance(value, numbers.Number):
+            raise TypeError(f'{value} is not a number')
+        self.value = value
 
     def partial(self, other):
         return ZERO
 
     def __repr__(self):
-        if self.name:
-            return self.name
-        return '<' + hex(id(self)) + '>'
+        return repr(self.value)
+
+    def __eq__(self, other):
+        other = self.make_op(other)
+        if not isinstance(other, Constant):
+            return False
+        return self.value == other.value
 
 
-NEGONE = Constant(-1, '-1')
-ZERO = Constant(0, '0')
-ONE = Constant(1, '1')
+NEGONE = Constant(-1)
+ZERO = Constant(0)
+ONE = Constant(1)
+
+
+class Variable(Operation):
+
+    def __init__(self, name):
+        if not isinstance(name, str):
+            raise TypeError('name must be a string')
+        self.name = name
+
+    def partial(self, other):
+        if other is self:
+            return ONE
+        return ZERO
+
+    def __repr__(self):
+        return self.name
 
 
 class ArgOperation(Operation):
@@ -65,11 +94,10 @@ class ArgOperation(Operation):
     def __init__(self, *args):
         self.args = [self.make_op(a) for a in args]
 
-    @staticmethod
-    def make_op(a):
-        if isinstance(a, Operation):
-            return a
-        return Constant(a)
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.args == other.args
 
 
 class Add(ArgOperation):
