@@ -113,11 +113,11 @@ class Multiply(ArgOperation):
         # cause promotion of other things to arrays, unexpectedly.
         if ZERO in args:
             return ZERO
-        return super(Multiply, cls).__new__(cls)
+        return super().__new__(cls)
 
     def partial(self, other):
-        return Add(*[Multiply(*[self.args[j] if i != j else self.args[j].partial(other)
-                                for j in range(len(self.args))])
+        return Add(*[Multiply(*[a if i != j else a.partial(other)
+                                for j, a in enumerate(self.args)])
                      for i in range(len(self.args))])
 
     def __repr__(self):
